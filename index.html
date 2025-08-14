@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Airtable Outdoor Furniture</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* General page styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: white;
+            padding: 2rem;
+        }
+
+        /* Container for the entire product list */
+        .product-container {
+            display: grid;
+            gap: 2rem;
+            grid-template-columns: repeat(1, minmax(0, 1fr));
+        }
+
+        /* Responsive grid for tablets and up */
+        @media (min-width: 640px) {
+            .product-container {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        /* Responsive grid for desktops and up */
+        @media (min-width: 768px) {
+            .product-container {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+
+        /* Responsive grid for larger screens */
+        @media (min-width: 1024px) {
+            .product-container {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+        }
+
+        /* Individual product module styling */
+        .product-module {
+            background-color: white;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1.5rem;
+            transition-property: transform;
+            transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+            transition-duration: 150ms;
+        }
+
+        /* Hover effect on product module */
+        .product-module:hover {
+            transform: scale(1.05);
+        }
+
+        /* Styling for the product image container */
+        .product-image-container {
+            width: 100%;
+            height: 12rem;
+            overflow: hidden;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Styling for the actual image */
+        .product-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 0.5rem;
+        }
+
+        /* Styling for the product info grid */
+        .product-info-grid {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: #4b5563;
+        }
+
+        /* Styling for each info row */
+        .info-row {
+            padding: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+    </style>
+</head>
+<body class="p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <h1 class="text-4xl font-bold text-gray-800 mb-8 text-center">Outdoor Furniture Catalog</h1>
+
+        <!-- Loading state -->
+        <div id="loading" class="text-center text-gray-500 text-lg">
+            Loading products...
+        </div>
+
+        <!-- Product container -->
+        <div id="product-container" class="product-container">
+            <!-- Product modules will be inserted here by JavaScript -->
+        </div>
+    </div>
+
+    <script>
+        // API credentials and details
+        // Note: It is best practice to handle API keys on a backend server to prevent exposure.
+        // For this demonstration, the key is included directly.
+        const API_KEY = "pat9g80M63AOmU4qt.595a4e1400d000ffbd61c35b694c9d8e40d16af42d2199e21f5ca9c4496c7ad2";
+        // The Base ID has been updated based on the URL you provided
+        const BASE_ID = "appp7difRrLdmwrU6";
+        const TABLE_NAME = "Industrious%20Furniture";
+
+        const productContainer = document.getElementById('product-container');
+        const loadingElement = document.getElementById('loading');
+
+        /**
+         * Fetches and displays products from the Airtable API.
+         */
+        async function fetchProducts() {
+            // Define the fields we want to retrieve and the filter formula
+            const fields = [
+                "Name",
+                "Images",
+                "LP SKU",
+                "2024-2025 Last Price",
+                "Size (WxLxH)",
+                "Item Type"
+            ];
+            // Filter to only show "Outdoor" items
+            const filterFormula = '{Item Type} = "Outdoor"';
+            const url = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_NAME}?filterByFormula=${encodeURIComponent(filterFormula)}&fields%5B%5D=${fields.map(field => encodeURIComponent(field)).join('&fields%5B%5D=')}`;
+
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${API_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    // Log the error for better debugging
+                    const errorData = await response.json();
+                    console.error('API Error Response:', errorData);
+                    throw new Error(`HTTP error! Status: ${response.status} - ${errorData.error.message}`);
+                }
+
+                const data = await response.json();
+                
+                // Hide the loading message once data is fetched
+                loadingElement.style.display = 'none';
+
+                if (data.records.length === 0) {
+                    productContainer.innerHTML = '<p class="text-center text-gray-500 col-span-full">No "Outdoor" products found.</p>';
+                    return;
+                }
+
+                // Iterate over each record and create an HTML module
+                data.records.forEach(record => {
+                    const fields = record.fields;
+                    
+                    // Get the first image URL or a placeholder
+                    const imageUrl = (fields.Images && fields.Images.length > 0) ? fields.Images[0].url : 'https://placehold.co/400x300/e5e7eb/6b7280?text=No+Image';
+                    const name = fields.Name || 'Untitled Product';
+                    const itemType = fields['Item Type'] || 'N/A';
+                    const lpSku = fields['LP SKU'] || 'N/A';
+                    const lastPrice = fields['2024-2025 Last Price'] ? `$${fields['2024-2025 Last Price'].toFixed(2)}` : 'N/A';
+                    const size = fields['Size (WxLxH)'] || 'N/A';
+
+                    const productModule = document.createElement('div');
+                    // Removed shadow-lg to blend into the white background
+                    productModule.className = 'product-module';
+                    
+                    productModule.innerHTML = `
+                        <!-- Product Image -->
+                        <div class="product-image-container">
+                            <img src="${imageUrl}" alt="${name}" class="product-image" onerror="this.onerror=null;this.src='https://placehold.co/400x300/e5e7eb/6b7280?text=Image+Failed';" />
+                        </div>
+                        
+                        <!-- Product Info Grid -->
+                        <div class="product-info-grid">
+                            <!-- Item Type -->
+                            <div class="info-row">
+                                <span class="font-semibold text-gray-500">Item Type:</span>
+                                <span class="text-gray-800 font-medium">${itemType}</span>
+                            </div>
+                            <!-- LP SKU -->
+                            <div class="info-row">
+                                <span class="font-semibold text-gray-500">LP SKU:</span>
+                                <span class="text-gray-800 font-medium">${lpSku}</span>
+                            </div>
+                            <!-- Last Price -->
+                            <div class="info-row">
+                                <span class="font-semibold text-gray-500">Last Price:</span>
+                                <span class="text-gray-800 font-medium">${lastPrice}</span>
+                            </div>
+                            <!-- Size -->
+                            <div class="info-row">
+                                <span class="font-semibold text-gray-500">Size:</span>
+                                <span class="text-gray-800 font-medium">${size}</span>
+                            </div>
+                        </div>
+                    `;
+                    productContainer.appendChild(productModule);
+                });
+
+            } catch (error) {
+                console.error('Failed to fetch products:', error);
+                loadingElement.innerHTML = `<p class="text-red-500 col-span-full">Failed to load products. Error: ${error.message}</p>`;
+            }
+        }
+
+        // Call the function to start fetching data
+        fetchProducts();
+    </script>
+
+</body>
+</html>
